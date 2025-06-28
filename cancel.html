@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cancel Reservation - Bunny Petting Farm</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-900">
+  <nav class="bg-white shadow mb-8">
+    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+      <a href="index.html" class="text-2xl font-bold">Bunny Petting</a>
+      <a href="admin.html" class="hover:text-blue-600">Admin Dashboard</a>
+    </div>
+  </nav>
+  <section class="container mx-auto px-4 py-8 bg-white rounded shadow-md">
+    <h1 class="text-2xl font-bold mb-4">Cancel Your Reservation</h1>
+    <!-- Step 1: Enter Email to Receive Link -->
+    <div id="email-entry" class="space-y-4">
+      <p>Enter the email you used to book and we'll send you a cancellation link.</p>
+      <input id="user-email" type="email" placeholder="Your Email" class="border p-2 rounded w-full"/>
+      <button id="send-link-btn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Send Cancellation Link</button>
+      <p id="entry-msg" class="text-red-600"></p>
+    </div>
+    <!-- Step 2: After clicking link, list reservations -->
+    <div id="cancel-list" class="hidden">
+      <p class="mb-4">Select which reservation to cancel:</p>
+      <ul id="reservations-ul" class="space-y-2"></ul>
+      <p id="cancel-msg" class="mt-4"></p>
+    </div>
+  </section>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getAuth, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+    import { getFirestore, collection, query, where, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+    // Config (same as other pages)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDzAh9L-swZ27MZOI3dLAjDSIAWQwBoT_c",
+      authDomain: "az-bunny-website.firebaseapp.com",
+      projectId: "az-bunny-website",
+      storageBucket: "az-bunny-website.firebasestorage.app",
+      messagingSenderId: "740273875679",
+      appId: "1:740273875679:web:0b8714421b3527940d976a",
+      measurementId: "G-DFEK9KS56J"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const emailEntry = document.getElementById('email-entry');
+    const cancelList = document.getElementById('cancel-list');
+    const entryMsg = document.getElementById('entry-msg');
+    const cancelMsg = document.getElementById('cancel-msg');
+    const reservationsUl = document.getElementById('reservations-ul');
+
+    // Action URLs for email link
+    const actionCodeSettings = {
+      url: `${window.location.origin}/cancel.html`,
+      handleCodeInApp: true
+    };
+
+    // Send cancellation link
+    document.getElementById('send-link-btn').addEventListener('click', async () => {
+      entryMsg.textContent = '';
+      const email = document.getElementById('user-email').value;
+      if (!email) { entryMsg.textContent = 'Please enter a valid email.'; return; }
+      try {
+        await sendSignInLinkToEmail(auth, email, { ...actionCodeSettings, url: `${actionCodeSettings.url}?email=${encodeURIComponent(email)}` });
+        entryMsg.className = 'text-green-600';
+        entryMsg.textContent = 'Link sent! Check your email to continue.';
+        window.localStorage.setItem('cancelEmail', email);
+      } catch (err) {
+        entryMsg.textContent = 'Failed to send link. Try again later.';
+      }
+    });
+
+    // On page load, check for sign-in link
+    if (isSignInWithEmailLink(auth, window.location.href)) {
+      // Show cancel list UI
+      emailEntry.classList.add('hidden');
+      cancelList.classList.remove('hidden');
+      let email = new URLSearchParams(window.location.search).get('email') || window.localStorage.getItem('cancelEmail');
+      try {
+        await signInWithEmailLink(auth, email, window.location.href);
+        loadReservationsToCancel(email);
+      } catch (err) {
+        cancelMsg.textContent = 'Error verifying link. Please try again.';
+      }
+    }
+
+    // Load reservations for the user
+    async function loadReservationsToCancel(email) {
+      const q = query(collection(db, 'reservations'), where('email', '==', email));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        cancelMsg.textContent = 'No reservations found for this email.';
+        return;
+      }
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const li = document.createElement('li');
+        li.className = 'flex justify-between items-center border rounded p-2';
+        li.innerHTML = `
+          <span>${data.date} @ ${data.time} - ${data.guests} guests</span>
+          <button class="bg-red-600 text-white px-2 py-1 rounded cancel-btn" data-id="${docSnap.id}">Cancel</button>
+        `;
+        reservationsUl.appendChild(li);
+      });
+
+      // Attach cancel handlers
+      document.querySelectorAll('.cancel-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          try {
+            await deleteDoc(doc(db, 'reservations', btn.dataset.id));
+            btn.parentElement.remove();
+            cancelMsg.className = 'text-green-600 mt-4';
+            cancelMsg.textContent = 'Reservation canceled.';
+          } catch (err) {
+            cancelMsg.textContent = 'Error canceling. Try again.';
+          }
+        });
+      });
+    }
+  </script>
+</body>
+</html>
