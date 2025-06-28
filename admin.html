@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Bunny Petting Farm</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-900">
+  <!-- Navbar -->
+  <nav class="bg-white shadow">
+    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+      <a href="index.html" class="text-2xl font-bold">Bunny Petting</a>
+      <div>
+        <a href="admin.html" class="mx-2 text-blue-600">Admin Dashboard</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Admin Section -->
+  <section class="container mx-auto px-4 py-8 bg-white rounded shadow-md">
+    <!-- Login Form -->
+    <div id="login-container" class="mb-6">
+      <h2 class="text-xl font-bold mb-2">Admin Login</h2>
+      <input id="email" type="email" placeholder="Email" class="border p-2 rounded w-full mb-2" />
+      <input id="password" type="password" placeholder="Password" class="border p-2 rounded w-full mb-4" />
+      <button id="login-btn" class="bg-blue-600 text-white px-4 py-2 rounded">Log In</button>
+      <p id="login-error" class="mt-2 text-red-600"></p>
+    </div>
+    <h1 class="text-3xl font-bold mb-6">Upcoming Reservations</h1>
+    <table id="reservations-table" class="min-w-full table-auto">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="px-4 py-2">Name</th>
+          <th class="px-4 py-2">Email</th>
+          <th class="px-4 py-2">Date</th>
+          <th class="px-4 py-2">Time</th>
+          <th class="px-4 py-2">Guests</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white"></tbody>
+    </table>
+  </section>
+
+  <!-- Firebase + Firestore + Auth -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getFirestore, collection, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+
+    // Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDzAh9L-swZ27MZOI3dLAjDSIAWQwBoT_c",
+      authDomain: "az-bunny-website.firebaseapp.com",
+      projectId: "az-bunny-website",
+      storageBucket: "az-bunny-website.firebasestorage.app",
+      messagingSenderId: "740273875679",
+      appId: "1:740273875679:web:0b8714421b3527940d976a",
+      measurementId: "G-DFEK9KS56J"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    const loginContainer = document.getElementById('login-container');
+    const loginError = document.getElementById('login-error');
+    const loginBtn = document.getElementById('login-btn');
+
+    loginBtn.addEventListener('click', async () => {
+      loginError.textContent = '';
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (error) {
+        loginError.textContent = 'Invalid credentials';
+      }
+    });
+
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        loginContainer.style.display = 'none';
+        loadReservations();
+      } else {
+        loginContainer.style.display = 'block';
+        document.querySelector('#reservations-table tbody').innerHTML = '';
+      }
+    });
+
+    async function loadReservations() {
+      const today = new Date().toISOString().split('T')[0];
+      const reservationsRef = collection(db, 'reservations');
+      const q = query(
+        reservationsRef,
+        where('date', '>=', today),
+        orderBy('date'),
+        orderBy('time')
+      );
+      const snapshot = await getDocs(q);
+      const tbody = document.querySelector('#reservations-table tbody');
+      tbody.innerHTML = '';
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="border px-4 py-2">${data.name}</td>
+          <td class="border px-4 py-2">${data.email}</td>
+          <td class="border px-4 py-2">${data.date}</td>
+          <td class="border px-4 py-2">${data.time}</td>
+          <td class="border px-4 py-2">${data.guests}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bunny Petting Farm</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-900">
+  <!-- Navbar -->
+  <nav class="bg-white shadow">
+    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+      <a href="#" class="text-2xl font-bold">Bunny Petting</a>
+      <div>
+        <a href="#" class="mx-2 hover:text-blue-600">Home</a>
+        <a href="#reservation" class="mx-2 hover:text-blue-600">Reservations</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <header class="container mx-auto px-4 py-12 text-center">
+    <h1 class="text-4xl font-extrabold mb-4">Welcome to Our Bunny Petting Farm!</h1>
+    <p class="text-lg">Come pet and feed adorable bunnies in the great outdoors.</p>
+  </header>
+
+  <!-- Reservation Form -->
+  <section id="reservation" class="container mx-auto px-4 py-8 bg-white rounded shadow-md">
+    <h2 class="text-2xl font-bold mb-4">Book a Visit</h2>
+    <form id="reservation-form" class="space-y-4">
+      <div>
+        <label for="name" class="block font-medium">Name</label>
+        <input type="text" id="name" name="name" required class="w-full border rounded px-3 py-2"/>
+      </div>
+      <div>
+        <label for="email" class="block font-medium">Email</label>
+        <input type="email" id="email" name="email" required class="w-full border rounded px-3 py-2"/>
+      </div>
+      <div>
+        <label for="date" class="block font-medium">Date</label>
+        <input type="date" id="date" name="date" required class="w-full border rounded px-3 py-2"/>
+      </div>
+      <div>
+        <label for="time" class="block font-medium">Time</label>
+        <input type="time" id="time" name="time" required class="w-full border rounded px-3 py-2"/>
+      </div>
+      <div>
+        <label for="guests" class="block font-medium">Number of Guests</label>
+        <input type="number" id="guests" name="guests" min="1" max="10" value="1" required class="w-full border rounded px-3 py-2"/>
+      </div>
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Submit</button>
+    </form>
+    <p id="message" class="mt-4 text-center"></p>
+  </section>
+
+  <!-- Firebase Integration -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+    // Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDzAh9L-swZ27MZOI3dLAjDSIAWQwBoT_c",
+      authDomain: "az-bunny-website.firebaseapp.com",
+      projectId: "az-bunny-website",
+      storageBucket: "az-bunny-website.firebasestorage.app",
+      messagingSenderId: "740273875679",
+      appId: "1:740273875679:web:0b8714421b3527940d976a",
+      measurementId: "G-DFEK9KS56J"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    document.getElementById('reservation-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const date = document.getElementById('date').value;
+      const time = document.getElementById('time').value;
+      const guests = parseInt(document.getElementById('guests').value, 10);
+      const messageEl = document.getElementById('message');
+
+      // Check for existing reservation
+      const reservationsRef = collection(db, 'reservations');
+      const q = query(reservationsRef, where('date', '==', date), where('time', '==', time));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        messageEl.textContent = 'Sorry, that slot is already booked. Please choose another time.';
+        messageEl.className = 'mt-4 text-center text-red-600';
+        return;
+      }
+
+      // Add new reservation
+      try {
+        await addDoc(reservationsRef, { name, email, date, time, guests, createdAt: serverTimestamp() });
+        messageEl.textContent = 'Reservation confirmed! Check your email for details.';
+        messageEl.className = 'mt-4 text-center text-green-600';
+        e.target.reset();
+      } catch (error) {
+        console.error('Error adding reservation:', error);
+        messageEl.textContent = 'There was an error. Please try again later.';
+        messageEl.className = 'mt-4 text-center text-red-600';
+      }
+    });
+  </script>
+</body>
+</html>
